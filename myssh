@@ -66,19 +66,7 @@ def cmd_list(args):
             print("%-3d %-10s %-15s %s"%(index, Host, v['HostName'], v['User']))
             index = index + 1
 
-def connect_expect1(cc):
-    pass
-
-def connect(conf):
-    print('connecting %s %s'%(conf['Host'], conf['HostName']))
-    ssh = pexpect.spawn("ssh %s:%s@%s"%(conf['User'], conf['Port'], conf['HostName']))
-    index = ssh.expect(["password:", "continue connecting (yes/no)?"], timeout = 5)
-    if index == 0:
-        ssh.sendline(conf['Password'])
-    elif index == 1:
-        ssh.sendline('yes\n')
-        ssh.expect('password:')
-        ssh.sendline(conf['Password'])
+def connect_expect1(ssh):
     index = ssh.expect (["#", pexpect.EOF, pexpect.TIMEOUT])
     if index == 0:
         print("logging success!")
@@ -88,6 +76,28 @@ def connect(conf):
     elif index == 2:
         print("logging timeout exit")
 
+
+def connect(conf):
+    print('connecting %s %s %s'%(conf['Host'], conf['User'], conf['HostName']))
+    ssh = pexpect.spawn("ssh %s:%s@%s"%(conf['User'], conf['Port'], conf['HostName']))
+    index = ssh.expect(["password:", "continue connecting (yes/no)?", "#", pexpect.EOF, pexpect.TIMEOUT], timeout = 5)
+    if index == 0:
+        ssh.sendline(conf['Password'])
+        connect_expect1(ssh)
+    elif index == 1:
+        ssh.sendline('yes\n')
+        ssh.expect('password:')
+        ssh.sendline(conf['Password'])
+        connect_expect1(ssh)
+    elif index == 2:
+        print("logging success!")
+        ssh.interact()
+    elif index == 1:
+        print("logging process exit!")
+    elif index == 2:
+        print("logging timeout exit")
+
+    
 def cmd_connect(args):
     dict = config_read()
     if not args.name in dict:
@@ -137,9 +147,10 @@ parser_list = subparsers.add_parser('list', help = u'列出连接')
 parser_list.set_defaults(func = cmd_list)
 parser_list.add_argument('keyword', help = '连接名', nargs = '?')
 
-parser_select = subparsers.add_parser('sel', help = u'选择连接')
+parser_select = subparsers.add_parser('sel', help = u'列出连接')
 parser_select.set_defaults(func = cmd_select)
 parser_select.add_argument('keyword', help = '连接名', nargs = '?')
+
 
 parser_connect = subparsers.add_parser('cc', help = u'连接')
 parser_connect.set_defaults(func = cmd_connect)
