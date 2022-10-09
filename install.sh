@@ -1,0 +1,2 @@
+
+cp myssh ~/.local/bin

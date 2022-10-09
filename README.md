@@ -1,5 +1,11 @@
 # myssh
 
+依赖
+```
+python3
+python3-pexpect
+```
+
 配置文件在 ~/.myssh/ssh_config
 ```
 Host example1
