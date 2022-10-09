@@ -8,3 +8,18 @@ Host example1
     User root
     Password 123456
 ```
+
+```
+# 打印帮助
+myssh -h
+
+# 列出所有连接
+myssh list keyword
+
+# 列出所有连接
+myssh sel keyword
+
+# 连接到服务
+myssh cc name
+
+```

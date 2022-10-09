@@ -137,10 +137,9 @@ parser_list = subparsers.add_parser('list', help = u'列出连接')
 parser_list.set_defaults(func = cmd_list)
 parser_list.add_argument('keyword', help = '连接名', nargs = '?')
 
-parser_select = subparsers.add_parser('sel', help = u'列出连接')
+parser_select = subparsers.add_parser('sel', help = u'选择连接')
 parser_select.set_defaults(func = cmd_select)
 parser_select.add_argument('keyword', help = '连接名', nargs = '?')
-
 
 parser_connect = subparsers.add_parser('cc', help = u'连接')
 parser_connect.set_defaults(func = cmd_connect)
