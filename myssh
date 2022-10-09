@@ -1,0 +1,158 @@
+#!/bin/python3
+# -*- coding: utf8 -*-
+
+import argparse
+import os
+import os.path
+import re
+import pexpect
+
+config_file_path = os.path.join(os.environ['HOME'], '.myssh/ssh_config')
+
+def config_read():
+    host_dict = {}
+    if not os.path.exists(config_file_path):
+        return host_dict
+    f = open(config_file_path)
+    lines = f.readlines()
+    Host = None
+    HostName = None
+    Password = None
+    User = None
+    Port = 22
+    def add_host():
+        host_dict[Host] = {'Host': Host, 'HostName': HostName, 'Port': Port, 'User': User, 'Password': Password}
+    for line in lines:
+        line = line.strip()
+        if line == '':
+            continue
+        args = line.split()
+        if args[0] == 'Host':
+            if Host:
+                add_host()
+            Host = args[1]
+        elif args[0] == 'HostName':
+            HostName = args[1]
+        elif args[0] == 'User':
+            User = args[1]
+        elif args[0] == 'Password':
+            Password = args[1]
+        elif args[0] == 'Port':
+            Port = args[1]
+        #print(line, args)
+    f.close()
+    if Host:
+        add_host()
+    return host_dict
+
+def config_add(Host, HostName, Port, User, Password):
+    f = open(config_file_path, 'a+')
+    f.write('\n')
+    f.write('Host %s\n'%(Host))
+    f.write('HostName %s\n'%(HostName))
+    f.write('Port %s\n'%(Port))
+    f.write('User %s\n'%(User))
+    f.write('Password %s\n'%(Password))
+    f.write('\n')
+    f.close()
+    return True
+
+def cmd_list(args):
+    keyword = args.keyword
+    dict = config_read()
+    index = 1
+    for Host, v in dict.items():
+        if not keyword or re.match(keyword, Host):
+            print("%-3d %-10s %-15s %s"%(index, Host, v['HostName'], v['User']))
+            index = index + 1
+
+def connect_expect1(cc):
+    pass
+
+def connect(conf):
+    print('connecting %s %s'%(conf['Host'], conf['HostName']))
+    ssh = pexpect.spawn("ssh %s:%s@%s"%(conf['User'], conf['Port'], conf['HostName']))
+    index = ssh.expect(["password:", "continue connecting (yes/no)?"], timeout = 5)
+    if index == 0:
+        ssh.sendline(conf['Password'])
+    elif index == 1:
+        ssh.sendline('yes\n')
+        ssh.expect('password:')
+        ssh.sendline(conf['Password'])
+    index = ssh.expect (["#", pexpect.EOF, pexpect.TIMEOUT])
+    if index == 0:
+        print("logging success!")
+        ssh.interact()
+    elif index == 1:
+        print("logging process exit!")
+    elif index == 2:
+        print("logging timeout exit")
+
+def cmd_connect(args):
+    dict = config_read()
+    if not args.name in dict:
+        print('not connection found')
+        return
+    conf = dict[args.name]
+    connect(conf)
+
+def cmd_select(args):
+    keyword = args.keyword
+    dict = config_read()
+    index = 1
+    list = []
+    for Host, v in dict.items():
+        if not keyword or re.match(keyword, Host):
+            print("%-3d %-10s %-15s %s"%(index, Host, v['HostName'], v['User']))
+            index = index + 1
+            list.append(v)
+    index = input('select a connection[%d-%d]:'%(1, len(list)))
+    try:
+        index = int(index) - 1
+    except:
+        print('invalid number')
+        return
+    if index < 0 or index >= len(list):
+        print('invalid number')
+        return
+    conf = list[index]
+    connect(conf)
+
+def cmd_add(args):
+    dict = config_read()
+    if args.Host in dict:
+        print('connection already exist')
+        return
+    result = config_add(args.Host, args.HostName, args.Port, args.User, args.Password)
+    if not result:
+        print('failed')
+    else:
+        print('success')
+
+
+parser = argparse.ArgumentParser()
+subparsers = parser.add_subparsers(title = "subcommands", description = "description", help = "subcommand help")
+
+parser_list = subparsers.add_parser('list', help = u'列出连接')
+parser_list.set_defaults(func = cmd_list)
+parser_list.add_argument('keyword', help = '连接名', nargs = '?')
+
+parser_select = subparsers.add_parser('sel', help = u'列出连接')
+parser_select.set_defaults(func = cmd_select)
+parser_select.add_argument('keyword', help = '连接名', nargs = '?')
+
+
+parser_connect = subparsers.add_parser('cc', help = u'连接')
+parser_connect.set_defaults(func = cmd_connect)
+parser_connect.add_argument('name', help = '连接名')
+
+parser_add = subparsers.add_parser('add', help = u'增加连接')
+parser_add.set_defaults(func = cmd_add)
+parser_add.add_argument('Host', help = '连接名')
+parser_add.add_argument('HostName', help = '地址')
+parser_add.add_argument('Port', help = '端口')
+parser_add.add_argument('User', help = '用户名')
+parser_add.add_argument('Password', help = '密码')
+
+args = parser.parse_args()
+args.func(args)
